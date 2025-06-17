@@ -23,7 +23,11 @@
   			puzzleCount = parseInt(match[1], 10);
   			pieceCount = parseInt(match[2], 10);
   		} else {
-  			pieceCount = parseInt(piecesValue);
+  			if (piecesValue && !isNan(piecesValue)) {
+				  pieceCount = parseInt(piecesValue);
+			  } else {
+				  pieceCount = 0;
+			  }
   		}
   		const p = document.createElement('p');
   		p.appendChild(document.createTextNode(`${row.id}  ${pieceCount}  ${row.name} `));
