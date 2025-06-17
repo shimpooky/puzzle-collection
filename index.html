@@ -15,8 +15,8 @@
   	const outputDiv = document.getElementById('output');
   	
   	data.forEach(row => {
-  		const puzzleCount = 1
-  		const pieceCount = 0;
+  		var puzzleCount = 1
+  		var pieceCount = 0;
   		const piecesValue = row.pieces;
   		const match = piecesValue && piecesValue.match(/^(\d+)\s*x\s*(\d+)/i);
   		if (match) { // multiple puzzles in one box
