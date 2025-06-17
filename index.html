@@ -30,21 +30,26 @@
 				  pieceCount = 0;
 			  }
   		}
-  		const p = document.createElement('p');
-  		p.appendChild(document.createTextNode(`${row.id}  ${pieceCount}  ${row.name} `));
-  		
-  		const imageUrls = row.imageUrl?.split(';').map(url => url.trim()).filter(Boolean);
-  		if (imageUrls && imageUrls.length > 0) {
-  			imageUrls.forEach(url => {
-  				const img = document.createElement('img');
-  				img.src = url;
-  		        img.alt = 'Puzzle image';
-  				img.style = 'height:300px; object-fit:cover; width:auto; display:block;';
-  				p.appendChild(img);
-  			});
-  		}
-  		p.appendChild(document.createElement('br'));
-  		outputDiv.appendChild(p);
+		if (pieceCount > 0) {
+			const p = document.createElement('p');
+			const boldId = document.createElement('strong');
+			boldId.textContent = row.id;
+			p.appendChild(boldId);
+			p.appendChild(document.createTextNode(`: ${row.name} (${piecesValue} Teile)`));
+			
+			const imageUrls = row.imageUrl?.split(';').map(url => url.trim()).filter(Boolean);
+			if (imageUrls && imageUrls.length > 0) {
+				imageUrls.forEach(url => {
+					const img = document.createElement('img');
+					img.src = url;
+				img.alt = 'Puzzle image';
+					img.style = 'height:500px; object-fit:cover; width:auto; display:block;';
+					p.appendChild(img);
+					p.appendChild(document.createElement('br'));
+				});
+			}
+			outputDiv.appendChild(p);
+		}
   	});
   }).catch(error => {
   	console.error('Error reading CSV:', error);
