@@ -3,5 +3,46 @@
 <br>
 <a href="rav1000.html">Ravensburger 1000 Teile</a><br><br>
 <a href="rav500.html">Ravensburger 500 Teile</a>
+<script>
+  fetch('data.csv').then(response => response.text()).ten(csvText => {
+  	const results = Papa.parse(csvText, {
+  		header: true,
+  		skipEmptyLines: true
+  	});
+  	
+  	const data = results.data;
+  	const outputDiv = document.getElementById('output');
+  	
+  	data.forEach(row => {
+  		const puzzleCount = 1
+  		const pieceCount = 0;
+  		const piecesValue = row.pieces;
+  		const match = piecesValue && piecesValue.match(/^(\d+)\s*x\s*(\d+)/i);
+  		if (match) { // multiple puzzles in one box
+  			puzzleCount = parseInt(match[1], 10);
+  			pieceCount = parseInt(match[2], 10);
+  		} else {
+  			pieceCount = parseInt(piecesValue);
+  		}
+  		const p = document.createElement('p');
+  		p.appendChild(document.createTextNode(`${row.id}  ${pieceCount}  ${row.name} `));
+  		
+  		const imageUrls = row.imageUrl?.split(';').map(url => url.trim()).filter(Boolean);
+  		if (imageUrls && imageUrls.length > 0) {
+  			imageUrls.forEach(url => {
+  				const img = document.createElement('img');
+  				img.src = url;
+  		        img.alt = 'Puzzle image';
+  				img.style = 'height:300px; object-fit:cover; width:auto; display:block;';
+  				p.appendChild(img);
+  			});
+  		}
+  		p.appendChild(document.createElement('br'));
+  		outputDiv.appendChild(p);
+  	});
+  }).catch(error => {
+  	console.error('Error reading CSV:', error);
+  });
+</script>
 </body>
 </html>
