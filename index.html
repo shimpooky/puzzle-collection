@@ -1,59 +1,154 @@
+<!doctype html>
 <html>
-<body>
-<br>
-<a href="rav1000.html">Ravensburger 1000 Teile</a><br><br>
-<a href="rav500.html">Ravensburger 500 Teile</a>
-<div id="output"></div>
-<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
-<script>
-  fetch('data.csv').then(response => response.text()).then(csvText => {
-  	const results = Papa.parse(csvText, {
-  		header: true,
-  		skipEmptyLines: true
-  	});
-  	
-  	const data = results.data;
-  	const outputDiv = document.getElementById('output');
-  	
-  	data.forEach(row => {
-  		var puzzleCount = 1
-  		var pieceCount = 0;
-  		const piecesValue = row.pieces;
-  		const match = piecesValue && piecesValue.match(/^(\d+)\s*x\s*(\d+)/i);
-  		if (match) { // multiple puzzles in one box
-  			puzzleCount = parseInt(match[1], 10);
-  			pieceCount = parseInt(match[2], 10);
-  		} else {
-  			if (piecesValue && !isNaN(piecesValue)) {
-				  pieceCount = parseInt(piecesValue);
-			  } else {
-				  pieceCount = 0;
-			  }
-  		}
-		if (pieceCount > 0) {
-			const p = document.createElement('p');
-			const boldId = document.createElement('strong');
-			boldId.textContent = row.id;
-			p.appendChild(boldId);
-			p.appendChild(document.createTextNode(`: ${row.name} (${piecesValue} Teile)`));
+	<head>
+		<link href="https://unpkg.com/slim-select@1.27.1/dist/slimselect.min.css" rel="stylesheet" />
+		<style>
+			.inline-group {
+				display: flex;
+				gap: 5px;
+			}
+		</style>
+	</head>
+	<body>
+		<br>
+		<a href="rav1000.html">Ravensburger 1000 Teile</a><br><br>
+		<a href="rav500.html">Ravensburger 500 Teile</a>
+		<div id="filters">
+			<label>Teile:
+				<select id="filter-pieces" multiple style="width: 150px;"></select>
+			</label>
+		</div>
+		<div id="output">
+		</div>
+		<script src="https://unpkg.com/slim-select@1.27.1/dist/slimselect.min.js"></script>
+		<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+		<script>
+			var data;
+			fetch('data.csv').then(response => response.text()).then(csvText => {
+				const results = Papa.parse(csvText, {
+					header: true,
+					skipEmptyLines: true
+				});
+				data = results.data;
+				
+				render(data);
+				
+				populateFilter("filter-pieces", "pieceCount");
+				applyFilters();
+				const outputDiv = document.getElementById('output');
+			}).catch(error => {
+				console.error('Error reading CSV:', error);
+			});
 			
-			const imageUrls = row.imageUrl?.split(';').map(url => url.trim()).filter(Boolean);
-			if (imageUrls && imageUrls.length > 0) {
-				imageUrls.forEach(url => {
-					const img = document.createElement('img');
-					img.src = url;
-				img.alt = 'Puzzle image';
-					img.style = 'height:500px; object-fit:cover; width:auto; display:block;';
-					p.appendChild(img);
-					p.appendChild(document.createElement('br'));
+			document.querySelectorAll('select[multiple]').forEach(select => {
+				new SlimSelect({select});
+			});
+			
+			// Populate a select element with unique values from a column
+			function populateFilter(selectId, columnName) {
+				const select = document.getElementById(selectId);
+				const uniqueValues = [...new Set(data.map(row => row[columnName]).filter(Boolean))];
+				var isNumbers = true;
+				uniqueValues.forEach(value => {
+					if (isNaN(Number(value))) {
+						isNumbers = false;
+					}
+				});
+				if (isNumbers) {
+					uniqueValues.sort((a, b) => Number(a) - Number(b));
+				} else {
+					uniqueValues.sort();
+				}
+
+				uniqueValues.forEach(value => {
+					const option = document.createElement('option');
+					option.value = value;
+					option.textContent = value;
+					select.appendChild(option);
+				});
+
+				// Update view on selection change
+				select.addEventListener('change', applyFilters);
+			}
+
+			// Apply filters based on dropdown selections
+			function applyFilters() {
+				const selectedPieces = getSelectedValues('filter-pieces');
+
+				const filtered = data.filter(row => {
+					return selectedPieces.length === 0 || selectedPieces.includes(String(row.pieceCount));
+				});
+
+				render(filtered);
+			}
+
+			// Helper to get selected values from a <select multiple>
+			function getSelectedValues(selectId) {
+				const select = document.getElementById(selectId);
+				return Array.from(select.selectedOptions).map(opt => opt.value);
+			}
+
+			// Render filtered data (simple example)
+			function render(rows) {
+				const outputDiv = document.getElementById('output');
+				outputDiv.innerHTML = ''; // clear old results
+
+				rows.forEach(row => {
+					var puzzleCount = 1
+					row.pieceCount = 0;
+					const piecesValue = row.pieces;
+					const match = piecesValue && piecesValue.match(/^(\d+)\s*x\s*(\d+)/i);
+					if (match) { // multiple puzzles in one box
+						puzzleCount = parseInt(match[1], 10);
+						row.pieceCount = parseInt(match[2], 10);
+					} else {
+						if (piecesValue && !isNaN(piecesValue)) {
+							row.pieceCount = parseInt(piecesValue);
+						} else {
+							row.pieceCount = 0;
+						}
+					}
+					if (row.pieceCount > 0) {
+						var artist = ''
+						if (row.artist) {
+							artist = `, ${row.artist}`
+						}
+						var series = '';
+						if (row.series) {
+							series = ` (${row.series})`;
+						}
+						const nameP = document.createElement('p');
+						const boldId = document.createElement('strong');
+						boldId.textContent = row.id;
+						const boldPieces = document.createElement('strong');
+						boldPieces.textContent = piecesValue
+						nameP.appendChild(boldId);
+						nameP.appendChild(document.createTextNode(`: ${row.name}${artist}${series} - ${piecesValue} Teile`));
+						nameP.appendChild(document.createElement('br'));
+						
+						var imageUrls = row.imageUrl?.split(';').map(url => url.trim()).filter(Boolean);
+						const boxImageUrls = row.boxImageUrl?.split(';').map(url => url.trim()).filter(Boolean);
+						imageUrls = [...imageUrls, ...boxImageUrls];
+						const imageP = document.createElement('p');
+						
+						if (imageUrls && imageUrls.length > 0) {
+							imageUrls.forEach(url => {
+								const img = document.createElement('img');
+								img.src = url;
+								img.alt = 'Puzzle image';
+								img.style = 'height:500px; object-fit:cover; width:auto; display:block;';
+								imageP.appendChild(img);
+								if (imageUrls.length > 1) {
+									imageP.className = 'inline-group';
+								}
+							});
+						}
+						outputDiv.appendChild(nameP);
+						outputDiv.appendChild(imageP);
+						outputDiv.appendChild(document.createElement('br'));
+					}
 				});
 			}
-			outputDiv.appendChild(p);
-		}
-  	});
-  }).catch(error => {
-  	console.error('Error reading CSV:', error);
-  });
-</script>
-</body>
+		</script>
+	</body>
 </html>
