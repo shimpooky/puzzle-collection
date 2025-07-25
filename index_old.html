@@ -1,0 +1,234 @@
+<!doctype html>
+<html>
+	<head>
+		<meta charset="UTF-8">
+		<link href="https://unpkg.com/slim-select@1.27.1/dist/slimselect.min.css" rel="stylesheet" />
+		<style>
+			.inline-group {
+				display: flex;
+				gap: 5px;
+			}
+		</style>
+	</head>
+	<body>
+		<div id="filters">
+			<label>Teile:
+				<select id="filter-pieces" multiple style="width: 150px;"></select>
+			</label>
+			<label>Serie:
+				<select id="filter-series" multiple style="width: 150px;"></select>
+			</label>
+			<label>Künstler:
+				<select id="filter-artist" multiple style="width: 150px;"></select>
+			</label>
+		</div>
+		<div id="output">
+		</div>
+		<script src="https://unpkg.com/slim-select@1.27.1/dist/slimselect.min.js"></script>
+		<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+		<script>
+			var data;
+			fetch('data.csv').then(response => response.text()).then(csvText => {
+				const results = Papa.parse(csvText, {
+					header: true,
+					skipEmptyLines: true
+				});
+				data = results.data;
+				
+				render(data);
+				
+				populateFilter("filter-pieces", "pieceCount");
+				populateFilter("filter-series", "series");
+				populateFilter("filter-artist", "artist");
+				const outputDiv = document.getElementById('output');
+			}).catch(error => {
+				console.error('Error reading CSV:', error);
+			});
+			
+			document.querySelectorAll('select[multiple]').forEach(select => {
+				new SlimSelect({select});
+			});
+			
+			// Populate a select element with unique values from a column
+			function populateFilter(selectId, columnName) {
+				const select = document.getElementById(selectId);
+				const uniqueValues = [...new Set(data.map(row => row[columnName]).filter(Boolean))];
+				var isNumbers = true;
+				uniqueValues.forEach(value => {
+					if (isNaN(Number(value))) {
+						isNumbers = false;
+					}
+				});
+				if (isNumbers) {
+					uniqueValues.sort((a, b) => Number(a) - Number(b));
+				} else {
+					uniqueValues.sort();
+				}
+
+				uniqueValues.forEach(value => {
+					const option = document.createElement('option');
+					option.value = value;
+					option.textContent = value;
+					select.appendChild(option);
+				});
+
+				// Update view on selection change
+				select.addEventListener('change', applyFilters);
+			}
+
+			// Apply filters based on dropdown selections
+			function applyFilters() {
+				const selectedPieces = getSelectedValues('filter-pieces');
+				const selectedSeries = getSelectedValues('filter-series');
+				const selectedArtists = getSelectedValues('filter-artist');
+
+				const filtered = data.filter(row => {
+					const matchPieces = selectedPieces.length === 0 || selectedPieces.includes(String(row.pieceCount));
+					const matchSeries = selectedSeries.length === 0 || selectedSeries.includes(String(row.series));
+					const matchArtist = selectedArtists.length === 0 || selectedArtists.includes(String(row.artist));
+					return matchPieces && matchSeries && matchArtist;
+				});
+				render(filtered);
+			}
+
+			// Helper to get selected values from a <select multiple>
+			function getSelectedValues(selectId) {
+				const select = document.getElementById(selectId);
+				return Array.from(select.selectedOptions).map(opt => opt.value);
+			}
+
+			// Render filtered data (simple example)
+			function render(rows) {
+				const outputDiv = document.getElementById('output');
+				outputDiv.innerHTML = ''; // clear old results
+
+				const min = 1;
+				const max = 2000;
+				let counter = 0;
+				rows.forEach(row => {
+					counter++;
+					if (counter >= min && counter <= max) {
+						var puzzleCount = 1
+						row.pieceCount = 0;
+						const piecesValue = row.pieces;
+						const match = piecesValue && piecesValue.match(/^(\d+)\s*x\s*(\d+)/i);
+						if (match) { // multiple puzzles in one box
+							puzzleCount = parseInt(match[1], 10);
+							row.pieceCount = parseInt(match[2], 10);
+						} else {
+							if (piecesValue && !isNaN(piecesValue)) {
+								row.pieceCount = parseInt(piecesValue);
+							} else {
+								row.pieceCount = 0;
+							}
+						}
+						if (row.pieceCount >= 0) {
+							var artist = ''
+							if (row.artist) {
+								artist = `, ${row.artist}`
+							}
+							var series = '';
+							if (row.series) {
+								series = ` (${row.series})`;
+							}
+							const nameP = document.createElement('h3');
+							const boldId = document.createElement('strong');
+							boldId.textContent = row.id;
+							const boldPieces = document.createElement('strong');
+							boldPieces.textContent = piecesValue
+							nameP.appendChild(boldId);
+							nameP.appendChild(document.createTextNode(`: ${row.name}${artist}${series} - ${piecesValue} Teile`));
+							nameP.appendChild(document.createElement('br'));
+							
+							const imageP = document.createElement('p');
+							imageP.className = 'inline-group';
+							const boxImageP = document.createElement('p');
+							boxImageP.className = 'inline-group';
+							const onlineImageP = document.createElement('p');
+							onlineImageP.className = 'inline-group';
+							
+							const imageNumberLowerLimit = 1;
+							const imageNumberUpperLimit = 3;
+							
+							var unloadedUrls = [];
+							unloadedUrls.push(`${row.id}.webp`);
+							for (let i = imageNumberLowerLimit; i <= imageNumberUpperLimit; i++) {
+								unloadedUrls.push(`${row.id}_${i}.webp`);
+							}
+							
+							var mainImageUrls = [];
+							var boxImageUrls = [];
+							mainImageUrls.push(`image/${row.id}.webp`);
+							boxImageUrls.push(`boximage/${row.id}.webp`);
+							for (let i = imageNumberLowerLimit; i <= imageNumberUpperLimit; i++) {
+								mainImageUrls.push(`image/${row.id}_${i}.webp`);
+								boxImageUrls.push(`boximage/${row.id}_${i}.webp`);
+							}
+							
+							// const mainPromises = mainImageUrls.map(url => {
+								// return new Promise(resolve => {
+								mainImageUrls.forEach(url => {
+									const img = document.createElement('img');
+									img.src = url;
+									img.onerror = () => {
+										img.remove();
+										resolve();
+									};
+									img.onload = () => {
+										img.alt = `Puzzle image ${url}`;  // TODO: remove path when done debugging
+										img.style = 'height:500px; object-fit:cover; width:auto; display:block;';
+										imageP.appendChild(img);
+										unloadedUrls.splice(unloadedUrls.indexOf(url.split('/')[1]), 1);
+										resolve();
+									}
+								});
+							// });
+							
+							// const boxPromises = boxImageUrls.map(url => {
+								// return new Promise(resolve => {
+								boxImageUrls.forEach(url => {
+									const img = document.createElement('img');
+									img.src = url;
+									img.onerror = () => {
+										img.remove();
+										resolve();
+									};
+									img.onload = () => {
+										img.alt = `Box image ${url}`;  // TODO: remove path when done debugging
+										img.style = 'height:500px; object-fit:cover; width:auto; display:block;';
+										boxImageP.appendChild(img);
+										unloadedUrls.splice(unloadedUrls.indexOf(url.split('/')[1]), 1);
+										resolve();
+									}
+								});
+							// });
+							/*
+							Promise.all([...mainPromises, ...boxPromises]).then(() => {
+								if (unloadedUrls.length > 0) {
+									const ravensburgerUrlStub = 'https://ravensburger.cloud/images/produktseiten/820x600/';
+									unloadedUrls.forEach(url => {
+										const img = document.createElement('img');
+										img.src = ravensburgerUrlStub + url;
+										img.alt = 'Loaded image';
+										img.style = 'height:500px; object-fit:cover; width:auto; display:block;';
+										onlineImageP.appendChild(img);
+									});
+									*/
+									outputDiv.appendChild(nameP);
+									outputDiv.appendChild(imageP);
+									outputDiv.appendChild(document.createElement('br'));
+									outputDiv.appendChild(boxImageP);
+									outputDiv.appendChild(document.createElement('br'));
+									outputDiv.appendChild(onlineImageP);
+									outputDiv.appendChild(document.createElement('br'));
+									/*
+								}
+							});
+							*/
+						}
+					}
+				});
+			}
+		</script>
+	</body>
+</html>
